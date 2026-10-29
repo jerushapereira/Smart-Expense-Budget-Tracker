@@ -1,48 +1,59 @@
 # SMART EXPENSE & BUDGET TRACKER
 
-A small Java OOP expense tracker with an HTML, CSS, and JavaScript interface. The Java HTTP API uses SQLite to save transactions, budgets, and activity between launches.
+This project keeps the existing Java backend and HTML, CSS, and JavaScript interface. PostgreSQL stores transactions, category budgets, and activity history. The JDBC driver is included in `backend`.
 
-## Project Structure
+## 1. Create the PostgreSQL database
+
+Open pgAdmin 4 and connect to your local PostgreSQL server. Right-click **Databases**, choose **Create > Database**, and enter:
 
 ```text
-SmartExpenseBudgetTracker/
-├── frontend/
-│   ├── index.html
-│   ├── style.css
-│   ├── script.js
-│   ├── favicon.svg
-│   ├── privacy.html
-│   └── terms.html
-└── backend/
-    ├── SmartExpenseBudgetTracker.java
-    └── sqlite-jdbc-3.53.4.0.jar
+smart_expense_budget_tracker
 ```
 
-## Run
+Alternatively, open Query Tool on the built-in `postgres` database and run [`database/create_database.sql`](database/create_database.sql).
 
-Install a Java JDK, open a terminal in the `backend` folder, then compile and start the server:
+Use the PostgreSQL account that can create tables in this database. When the Java app starts, it creates the `transactions`, `budgets`, and `activity` tables and inserts the five default budget categories.
 
-```bash
-javac SmartExpenseBudgetTracker.java
-java --enable-native-access=ALL-UNNAMED -cp ".;sqlite-jdbc-3.53.4.0.jar" SmartExpenseBudgetTracker
+## 2. Set the connection details and run
+
+Open PowerShell in `D:\Smart-Expense-Budget-Tracker\backend` and run:
+
+```powershell
+$env:DB_URL = "jdbc:postgresql://localhost:5432/smart_expense_budget_tracker"
+$env:DB_USER = "postgres"
+$securePassword = Read-Host "PostgreSQL password" -AsSecureString
+$env:DB_PASSWORD = [System.Net.NetworkCredential]::new("", $securePassword).Password
+javac -cp ".;postgresql-42.7.14.jar" SmartExpenseBudgetTracker.java
+java -cp ".;postgresql-42.7.14.jar" SmartExpenseBudgetTracker
 ```
 
-On macOS or Linux, use `:` instead of `;` in the classpath:
+Use the username and password for your PostgreSQL server. The password is read from the current PowerShell session and is not saved in the project. The app uses port `8000`; open <http://localhost:8000/> after it starts.
 
-```bash
-java --enable-native-access=ALL-UNNAMED -cp ".:sqlite-jdbc-3.53.4.0.jar" SmartExpenseBudgetTracker
+Optional environment variables:
+
+```powershell
+$env:DB_URL = "jdbc:postgresql://localhost:5432/your_database_name"
+$env:DB_USER = "your_postgres_user"
 ```
 
-Open <http://localhost:8000/>. The database file `expense-tracker.db` is created beside the Java application and is retained when the server stops.
+The default URL and user are `jdbc:postgresql://localhost:5432/smart_expense_budget_tracker` and `postgres`.
 
-## Storage
+## 3. View app data in pgAdmin 4
 
-SQLite creates three tables when the server first starts:
+Start the Java app once so it creates the tables. In pgAdmin, select the `smart_expense_budget_tracker` database, open **Tools > Query Tool**, and run the queries in [`database/pgadmin_queries.sql`](database/pgadmin_queries.sql). You can also expand **Schemas > public > Tables** to browse and edit the rows.
 
-- `transactions` stores income and expense records.
-- `budgets` stores one spending limit per category.
-- `activity` stores the latest 100 activity messages.
+```sql
+SELECT * FROM public.transactions ORDER BY id;
+SELECT * FROM public.budgets ORDER BY category;
+SELECT * FROM public.activity ORDER BY id DESC;
+```
 
-All inserts, edits, deletes, and searches use JDBC prepared statements. Transactions, budgets, and activity are loaded from SQLite at startup, and API state/monthly views read saved values. The standard Java classes `Transaction`, `Expense`, `Income`, `Budget`, and `Trackable` continue to represent the application's data and behavior.
+## Database tables
 
-The database file contains the app's data. Back it up before moving or removing the project folder.
+- `transactions`: income and expense entries, including date and category.
+- `budgets`: one spending limit for each category.
+- `activity`: saved add, edit, delete, and budget-change events with timestamps.
+
+The transaction table has separate `income_source` and `payment_mode` columns, plus `created_at` and `updated_at` timestamps. On startup, the app migrates the earlier `detail` column into the correct source or payment column. Deleting a transaction runs `DELETE FROM transactions WHERE id = ?`; the activity log keeps a separate record that the delete occurred.
+
+The Java API uses JDBC prepared statements for inserts, reads, updates, deletes, and search. PostgreSQL is the source of saved state, so data remains available after restarting the Java app.

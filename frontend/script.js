@@ -50,7 +50,7 @@ const ids = {
     monthlyExpense: document.getElementById("monthlyExpense"),
     monthlyBalance: document.getElementById("monthlyBalance"),
     monthlyCategories: document.getElementById("monthlyCategories"),
-    activityList: document.getElementById("activityList"),
+    activityRows: document.getElementById("activityRows"),
     appName: document.getElementById("appName"),
     categoryCount: document.getElementById("categoryCount"),
     transactionCount: document.getElementById("transactionCount"),
@@ -242,18 +242,72 @@ function renderAnalysis(target, rows) {
 }
 
 function renderActivity() {
-    ids.activityList.innerHTML = "";
+    ids.activityRows.innerHTML = "";
+    const legacyActivityFormat = appState.activity.some(function(activity) {
+        return typeof activity === "string";
+    });
     if (appState.activity.length === 0) {
-        const item = document.createElement("li");
-        item.textContent = "No activity has been recorded yet.";
-        ids.activityList.appendChild(item);
+        const row = document.createElement("tr");
+        const cell = document.createElement("td");
+        cell.colSpan = 4;
+        cell.className = "empty-row";
+        cell.textContent = "No activity has been recorded yet.";
+        row.appendChild(cell);
+        ids.activityRows.appendChild(row);
         return;
     }
     appState.activity.forEach(function(activity) {
-        const item = document.createElement("li");
-        item.textContent = activity;
-        ids.activityList.appendChild(item);
+        const activityId = typeof activity === "string" ? null : activity.id;
+        const activityMessage = typeof activity === "string" ? activity : activity.message;
+        const row = document.createElement("tr");
+        const idCell = document.createElement("td");
+        idCell.textContent = activityId === null ? "—" : activityId;
+        row.appendChild(idCell);
+        const messageCell = document.createElement("td");
+        messageCell.textContent = activityMessage;
+        row.appendChild(messageCell);
+        const dateCell = document.createElement("td");
+        dateCell.textContent = typeof activity === "string" ? "—" : formatActivityDate(activity.createdAt);
+        row.appendChild(dateCell);
+        const actionCell = document.createElement("td");
+        actionCell.className = "activity-action-cell";
+        if (Number.isInteger(activityId)) {
+            const deleteButton = document.createElement("button");
+            deleteButton.type = "button";
+            deleteButton.className = "danger activity-delete";
+            deleteButton.textContent = "Delete";
+            deleteButton.setAttribute("aria-label", "Delete activity entry " + activityId);
+            deleteButton.addEventListener("click", function() {
+                deleteActivity(activityId);
+            });
+            actionCell.appendChild(deleteButton);
+        } else {
+            actionCell.textContent = "Restart app";
+        }
+        row.appendChild(actionCell);
+        ids.activityRows.appendChild(row);
     });
+    if (legacyActivityFormat) {
+        showMessage("Restart the Java app to load activity IDs and enable deletion.", false);
+    }
+}
+
+function formatActivityDate(value) {
+    if (!value) {
+        return "—";
+    }
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+}
+
+async function deleteActivity(id) {
+    try {
+        await apiPost("/api/activity/delete", { id: String(id) });
+        showMessage("Activity entry deleted successfully.", false);
+        await loadState();
+    } catch (error) {
+        showMessage(error.message, true);
+    }
 }
 
 function renderInfo() {

@@ -193,15 +193,27 @@
         <section id="history" class="section-block">
             <div class="section-title">
                 <h2>Activity History</h2>
-                <p>Actual changes made during this application session.</p>
+                <p>Saved activity records. Delete a row to remove it from the history.</p>
             </div>
-            <ul id="activityList" class="activity-list"></ul>
+            <div class="table-wrap">
+                <table class="activity-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Activity</th>
+                            <th>Date and Time</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="activityRows"></tbody>
+                </table>
+            </div>
         </section>
 
         <section id="info" class="section-block">
             <div class="section-title">
                 <h2>Application Information</h2>
-                <p>This web version uses the existing Java classes through a small session-based API.</p>
+                <p>This web version connects the existing Java classes to a PostgreSQL database.</p>
             </div>
             <dl class="info-grid">
                 <div>
